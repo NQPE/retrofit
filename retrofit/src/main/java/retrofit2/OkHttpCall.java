@@ -207,6 +207,8 @@ final class OkHttpCall<T> implements Call<T> {
       return Response.success(null, rawResponse);
     }
 
+    //通过serviceMethod对ResponseBody进行转化，
+    // 然后返回，转化实际上就是通过responseConverter的convert方法
     ExceptionCatchingRequestBody catchingBody = new ExceptionCatchingRequestBody(rawBody);
     try {
       T body = serviceMethod.toResponse(catchingBody);

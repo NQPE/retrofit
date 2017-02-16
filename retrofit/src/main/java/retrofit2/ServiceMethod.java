@@ -77,6 +77,12 @@ final class ServiceMethod<R, T> {
   private final boolean isMultipart;
   private final ParameterHandler<?>[] parameterHandlers;
 
+  /**
+   * ServiceMethod主要用于将我们接口中的方法转化为一个Request对象，
+   * 于是根据我们的接口返回值确定了responseConverter,解析我们方法上的注解拿到初步的url,
+   * 解析我们参数上的注解拿到构建RequestBody所需的各种信息，最终调用toRequest的方法完成Request的构建
+   *
+   */
   ServiceMethod(Builder<R, T> builder) {
     this.callFactory = builder.retrofit.callFactory();
     this.callAdapter = builder.callAdapter;
@@ -126,8 +132,11 @@ final class ServiceMethod<R, T> {
   static final class Builder<T, R> {
     final Retrofit retrofit;
     final Method method;
+    //获取方法上的注解
     final Annotation[] methodAnnotations;
+    //方法参数——注解
     final Annotation[][] parameterAnnotationsArray;
+    //方法参数——泛型
     final Type[] parameterTypes;
 
     Type responseType;
@@ -158,23 +167,36 @@ final class ServiceMethod<R, T> {
     }
 
     public ServiceMethod build() {
+      //callAdapter最终拿到的是我们在构建retrofit里面时adapterFactories时添加的，
+      // 即为：new ExecutorCallbackCall<>(callbackExecutor, call)，
+      // 该ExecutorCallbackCall唯一做的事情就是将原本call的回调转发至UI线程。
       callAdapter = createCallAdapter();
+      //callAdapter.responseType()返回的是我们方法的实际类型，
+      // 例如:Call<User>,则返回User类型，然后对该类型进行判断
       responseType = callAdapter.responseType();
+      //method返回的类型不能是Response.class 或者 okhttp3.Response.class
       if (responseType == Response.class || responseType == okhttp3.Response.class) {
         throw methodError("'"
             + Utils.getRawType(responseType).getName()
             + "' is not a valid response body type. Did you mean ResponseBody?");
       }
+      //createResponseConverter拿到responseConverter对象，
+      // 其当然也是根据我们构建retrofit时,addConverterFactory添加的ConverterFactory对象来寻找一个合适的返回，
+      // 寻找的依据主要看该converter能否处理你编写方法的返回值类型，默认实现为BuiltInConverters，
+      // 仅仅支持返回值的实际类型为ResponseBody和Void，也就说明了默认情况下，是不支持Call<User>这类类型的。
       responseConverter = createResponseConverter();
 
       for (Annotation annotation : methodAnnotations) {
+        //处理method的注解
+        //对注解进行解析了，主要是对方法上的注解进行解析，
+        // 那么可以拿到httpMethod以及初步的url（包含占位符）。
         parseMethodAnnotation(annotation);
       }
 
       if (httpMethod == null) {
         throw methodError("HTTP method annotation is required (e.g., @GET, @POST, etc.).");
       }
-
+      //delete get heaader 这些不传递httpbody的注解请求不能添加isMultipart 以及isFormEncoded注解
       if (!hasBody) {
         if (isMultipart) {
           throw methodError(
@@ -186,6 +208,8 @@ final class ServiceMethod<R, T> {
         }
       }
 
+      //对方法中参数中的注解进行解析，这一步会拿到很多的ParameterHandler对象，
+      // 该对象在toRequest()构造Request的时候调用其apply方法
       int parameterCount = parameterAnnotationsArray.length;
       parameterHandlers = new ParameterHandler<?>[parameterCount];
       for (int p = 0; p < parameterCount; p++) {
@@ -215,7 +239,7 @@ final class ServiceMethod<R, T> {
       if (isMultipart && !gotPart) {
         throw methodError("Multipart method must contain at least one @Part.");
       }
-
+      //初始化完method信息封装在builder中传递给ServiceMethod构造函数
       return new ServiceMethod<>(this);
     }
 
@@ -237,6 +261,7 @@ final class ServiceMethod<R, T> {
       }
     }
 
+    //解析method方法注解信息
     private void parseMethodAnnotation(Annotation annotation) {
       if (annotation instanceof DELETE) {
         parseHttpMethodAndPath("DELETE", ((DELETE) annotation).value(), false);
@@ -277,6 +302,12 @@ final class ServiceMethod<R, T> {
       }
     }
 
+    /**
+     * 解析method方法注解信息
+     * @param httpMethod
+     * @param value
+     * @param hasBody
+     */
     private void parseHttpMethodAndPath(String httpMethod, String value, boolean hasBody) {
       if (this.httpMethod != null) {
         throw methodError("Only one HTTP method is allowed. Found: %s and %s.",
@@ -293,6 +324,7 @@ final class ServiceMethod<R, T> {
       int question = value.indexOf('?');
       if (question != -1 && question < value.length() - 1) {
         // Ensure the query string does not have any named parameters.
+        //如果注解url中包含了“?” 那么就不能使用 {xxx}的方式 可以使用dynamic query parameters use @Query来代替
         String queryParams = value.substring(question + 1);
         Matcher queryParamMatcher = PARAM_URL_REGEX.matcher(queryParams);
         if (queryParamMatcher.find()) {
@@ -328,6 +360,13 @@ final class ServiceMethod<R, T> {
       return builder.build();
     }
 
+    /**
+     * 每一个参数注解对应一个ParameterHandler参数处理类
+     * @param p
+     * @param parameterType
+     * @param annotations
+     * @return
+     */
     private ParameterHandler<?> parseParameter(
         int p, Type parameterType, Annotation[] annotations) {
       ParameterHandler<?> result = null;
@@ -353,6 +392,14 @@ final class ServiceMethod<R, T> {
       return result;
     }
 
+    /**
+     * 解析参数注解 生成各种不同的对应ParameterHandler对象 专门处理注解信息
+     * @param p method中的第几个参数
+     * @param type 参数返回值类型
+     * @param annotations 参数的注解数组
+     * @param annotation 解析当前注解数组中的具体的注解
+     * @return
+     */
     private ParameterHandler<?> parseParameterAnnotation(
         int p, Type type, Annotation[] annotations, Annotation annotation) {
       if (annotation instanceof Url) {
