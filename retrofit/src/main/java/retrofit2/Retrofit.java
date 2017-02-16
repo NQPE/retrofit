@@ -139,6 +139,7 @@ public final class Retrofit {
             eagerlyValidateMethods(service);
         }
         //java的动态代理 返回service的代理 现在的java动态代理只能代理接口 不能代理普通类
+        //动态代理就是拦截调用的那个方法，在方法前后来做一些操作
         return (T) Proxy.newProxyInstance(service.getClassLoader(), new Class<?>[]{service},
                 new InvocationHandler() {
                     private final Platform platform = Platform.get();

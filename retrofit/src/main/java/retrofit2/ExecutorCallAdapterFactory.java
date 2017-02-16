@@ -33,6 +33,7 @@ final class ExecutorCallAdapterFactory extends CallAdapter.Factory {
     if (getRawType(returnType) != Call.class) {
       return null;
     }
+    //responseType 例如:Call<User>,则返回User类型
     final Type responseType = Utils.getCallResponseType(returnType);
     return new CallAdapter<Object, Call<?>>() {
       @Override public Type responseType() {
