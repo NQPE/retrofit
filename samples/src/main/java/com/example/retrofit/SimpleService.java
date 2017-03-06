@@ -18,6 +18,8 @@ package com.example.retrofit;
 import java.io.IOException;
 import java.util.List;
 import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.Retrofit;
 import retrofit2.http.GET;
@@ -56,6 +58,17 @@ public final class SimpleService {
     // Create a call instance for looking up Retrofit contributors.
     Call<List<Contributor>> call = github.contributors("square", "retrofit");
 
+    call.enqueue(new Callback<List<Contributor>>() {
+      @Override
+      public void onResponse(Call<List<Contributor>> call, Response<List<Contributor>> response) {
+          //TODO
+      }
+
+      @Override
+      public void onFailure(Call<List<Contributor>> call, Throwable t) {
+          //TODO
+      }
+    });
     // Fetch and print a list of the contributors to the library.
     List<Contributor> contributors = call.execute().body();
     for (Contributor contributor : contributors) {

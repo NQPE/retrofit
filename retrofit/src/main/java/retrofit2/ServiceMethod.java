@@ -161,8 +161,11 @@ final class ServiceMethod<R, T> {
     Builder(Retrofit retrofit, Method method) {
       this.retrofit = retrofit;
       this.method = method;
+      //获取方法上的注解
       this.methodAnnotations = method.getAnnotations();
+      //方法参数——泛型
       this.parameterTypes = method.getGenericParameterTypes();
+      //方法参数——注解
       this.parameterAnnotationsArray = method.getParameterAnnotations();
     }
 

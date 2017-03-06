@@ -174,6 +174,11 @@ final class OkHttpCall<T> implements Call<T> {
     return parseResponse(call.execute());
   }
 
+  /**
+   * 创建okhttp3的call
+   * @return
+   * @throws IOException
+   */
   private okhttp3.Call createRawCall() throws IOException {
     Request request = serviceMethod.toRequest(args);
     okhttp3.Call call = serviceMethod.callFactory.newCall(request);
@@ -183,6 +188,12 @@ final class OkHttpCall<T> implements Call<T> {
     return call;
   }
 
+  /**
+   * 转化okhttp3.Response为retrofit封装的Response
+   * @param rawResponse
+   * @return
+   * @throws IOException
+   */
   Response<T> parseResponse(okhttp3.Response rawResponse) throws IOException {
     ResponseBody rawBody = rawResponse.body();
 
@@ -207,10 +218,12 @@ final class OkHttpCall<T> implements Call<T> {
       return Response.success(null, rawResponse);
     }
 
-    //通过serviceMethod对ResponseBody进行转化，
-    // 然后返回，转化实际上就是通过responseConverter的convert方法
+    //ExceptionCatchingRequestBody为ResponseBody的代理类
+    //主要是读写内容的时候使用Okio的读写工具类来提高效率
     ExceptionCatchingRequestBody catchingBody = new ExceptionCatchingRequestBody(rawBody);
     try {
+      //通过serviceMethod对ResponseBody进行转化，
+      // 然后返回，转化实际上就是通过responseConverter的convert方法
       T body = serviceMethod.toResponse(catchingBody);
       return Response.success(body, rawResponse);
     } catch (RuntimeException e) {
